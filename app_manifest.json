@@ -1,0 +1,60 @@
+{
+    "display_information": {
+        "name": "Replica",
+        "description": "Datadog Dashboard Replicas",
+        "background_color": "#000000",
+        "long_description": "UNDER DEVELOPMENT!\r\n\r\nReplica is collection of workflows designed to streamline the process of cloning dashboards in Datadog. It's formed of a series of workflows to clone dashboards and submit PRs to merge the changes."
+    },
+    "features": {
+        "bot_user": {
+            "display_name": "Replica",
+            "always_online": true
+        },
+        "shortcuts": [
+            {
+                "name": "Create a Replica",
+                "type": "global",
+                "callback_id": "replica",
+                "description": "Create a Replica of a Datadog Dashboard"
+            }
+        ]
+    },
+    "oauth_config": {
+        "scopes": {
+            "user": [
+                "chat:write"
+            ],
+            "bot": [
+                "chat:write",
+                "commands",
+                "app_mentions:read",
+                "channels:history",
+                "channels:read",
+                "im:read",
+                "im:write",
+                "mpim:history",
+                "im:history",
+                "groups:history"
+            ]
+        }
+    },
+    "settings": {
+        "event_subscriptions": {
+            "bot_events": [
+                "app_mention",
+                "message.channels",
+                "message.groups",
+                "message.im",
+                "message.mpim"
+            ]
+        },
+        "interactivity": {
+            "is_enabled": true,
+            "request_url": "https://localhost:8080",
+            "message_menu_options_url": "https://localhost:8080"
+        },
+        "org_deploy_enabled": false,
+        "socket_mode_enabled": true,
+        "token_rotation_enabled": false
+    }
+}
