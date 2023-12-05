@@ -48,6 +48,7 @@ To set up the app:
     SLACK_BOT_TOKEN=xoxb-xxxxxx
     DATADOG_API_KEY=
     DATADOG_APP_KEY=
+    SLACK_CHANNEL_ID=
     ```
 
 4. Install necessary Go libraries with `go get`.

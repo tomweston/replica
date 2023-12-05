@@ -34,7 +34,7 @@ type Payload struct {
 	} `json:"view"`
 }
 
-const channelID = "C05M9G5LF6K"
+var channelID = os.Getenv("SLACK_CHANNEL_ID")
 
 var r = rand.New(rand.NewSource(time.Now().UnixNano()))
 
