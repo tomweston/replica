@@ -10,12 +10,11 @@
             "display_name": "Replica",
             "always_online": true
         },
-        "shortcuts": [
+        "slash_commands": [
             {
-                "name": "Create a Replica",
-                "type": "global",
-                "callback_id": "replica",
-                "description": "Create a Replica of a Datadog Dashboard"
+                "command": "/rep",
+                "description": "Create a Replica",
+                "should_escape": false
             }
         ]
     },
