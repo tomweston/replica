@@ -8,8 +8,8 @@
 [Key Features](#key-features) •
 [Prerequisites](#prerequisites) •
 [Permissions and Settings](#permissions-and-settings) •
-[🤝 Contributing](#-contributing) •
-[📄 License](#-license)
+[Contributing](#-contributing) •
+[License](#-license)
 
 `Replica` Is a Slack app that integrates with Datadog, allowing users to seamlessly create replicas of dashboards directly from Slack.
 
