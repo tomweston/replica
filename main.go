@@ -34,8 +34,6 @@ type Payload struct {
 	} `json:"view"`
 }
 
-var channelID = os.Getenv("SLACK_CHANNEL_ID")
-
 var r = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func replicaName() string {
@@ -69,11 +67,11 @@ func replicaName() string {
 	return fmt.Sprintf("%s-%s", randomAdjective, randomVerb)
 }
 
-func CreateDatadogContext() context.Context {
+func CreateDatadogContext() (context.Context, *datadog.Configuration) {
 	apiKey := datadog.APIKey{Key: os.Getenv("DATADOG_API_KEY")}
 	appKey := datadog.APIKey{Key: os.Getenv("DATADOG_APP_KEY")}
 
-	return context.WithValue(
+	ctx := context.WithValue(
 		context.Background(),
 		datadog.ContextAPIKeys,
 		map[string]datadog.APIKey{
@@ -81,12 +79,16 @@ func CreateDatadogContext() context.Context {
 			"appKeyAuth": appKey,
 		},
 	)
+
+	configuration := datadog.NewConfiguration()
+	configuration.Host = "api.datadoghq.eu"
+
+	return ctx, configuration
 }
 
 func FetchDatadogDashboards() ([]DatadogDashboard, error) {
 
-	ctx := CreateDatadogContext()
-	configuration := datadog.NewConfiguration()
+	ctx, configuration := CreateDatadogContext()
 	apiClient := datadog.NewAPIClient(configuration)
 	api := datadogV1.NewDashboardsApi(apiClient)
 
@@ -124,8 +126,7 @@ func handleViewSubmission(payload slack.InteractionCallback) {
 
 func CloneDashboardAndReturnReplicaLink(selectedDashboardID, replicaName string) (string, error) {
 
-	ctx := CreateDatadogContext()
-	configuration := datadog.NewConfiguration()
+	ctx, configuration := CreateDatadogContext()
 	apiClient := datadog.NewAPIClient(configuration)
 	api := datadogV1.NewDashboardsApi(apiClient)
 
@@ -140,8 +141,71 @@ func CloneDashboardAndReturnReplicaLink(selectedDashboardID, replicaName string)
 	if err != nil {
 		return "", err
 	}
-	baseURL := "https://app.datadoghq.com/dashboard/"
+	baseURL := "https://app.datadoghq.eu/dashboard/"
 	return baseURL + replica.GetId(), nil
+}
+
+func openReplicaModal(api *slack.Client, triggerID string) {
+	dashboards, err := FetchDatadogDashboards()
+	if err != nil {
+		log.Printf("Failed to fetch dashboards: %v", err)
+		return
+	}
+
+	options := make([]*slack.OptionBlockObject, len(dashboards))
+	for i, dashboard := range dashboards {
+		optionText := slack.NewTextBlockObject("plain_text", dashboard.Title, false, false)
+		options[i] = slack.NewOptionBlockObject(dashboard.ID, optionText, optionText)
+	}
+
+	dropdown := slack.NewOptionsSelectBlockElement("static_select", nil, "dropdown_action_id", options...)
+
+	inputBlockWithDropdown := slack.NewInputBlock(
+		"dropdown_block_id",
+		slack.NewTextBlockObject("plain_text", "Select a Dashboard", false, false),
+		slack.NewTextBlockObject("plain_text", "Ensure you select the correct dashboard from the list", false, false),
+		dropdown,
+	)
+
+	descriptionText := "Please choose a Datadog dashboard from the dropdown below that you wish to replicate. Once you've made your selection, click 'Create' to generate a unique replica link."
+	descriptionBlock := slack.NewSectionBlock(
+		slack.NewTextBlockObject("mrkdwn", descriptionText, false, false),
+		nil, nil,
+	)
+
+	CreateReplicaModalView := slack.ModalViewRequest{
+		Type:       "modal",
+		CallbackID: "modal-id",
+		Title: slack.NewTextBlockObject(
+			"plain_text",
+			"Create a Replica",
+			false,
+			false,
+		),
+		Submit: slack.NewTextBlockObject(
+			"plain_text",
+			"Create",
+			false,
+			false,
+		),
+		Close: slack.NewTextBlockObject(
+			"plain_text",
+			"Cancel",
+			false,
+			false,
+		),
+		Blocks: slack.Blocks{
+			BlockSet: []slack.Block{
+				descriptionBlock,
+				inputBlockWithDropdown,
+			},
+		},
+	}
+
+	_, err = api.OpenView(triggerID, CreateReplicaModalView)
+	if err != nil {
+		log.Printf("Failed to open a modal: %v", err)
+	}
 }
 
 func main() {
@@ -152,7 +216,7 @@ func main() {
 		return
 	}
 
-	requiredEnvVars := []string{"DATADOG_API_KEY", "DATADOG_APP_KEY", "SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"}
+	requiredEnvVars := []string{"DATADOG_API_KEY", "DATADOG_APP_KEY", "SLACK_BOT_TOKEN", "SLACK_APP_TOKEN", "SLACK_CHANNEL_ID"}
 	for _, envVar := range requiredEnvVars {
 		if os.Getenv(envVar) == "" {
 			fmt.Printf("Error: %s not set in .env\n", envVar)
@@ -179,9 +243,24 @@ func main() {
 	}
 	selfUserId := authTest.UserID
 
+	channelID := os.Getenv("SLACK_CHANNEL_ID")
+
 	go func() {
 		for envelope := range socketMode.Events {
 			switch envelope.Type {
+
+			case socketmode.EventTypeSlashCommand:
+				cmd, ok := envelope.Data.(slack.SlashCommand)
+				if !ok {
+					log.Printf("Ignored slash command: %v", envelope.Data)
+					continue
+				}
+
+				if cmd.Command == "/rep" {
+					socketMode.Ack(*envelope.Request)
+					openReplicaModal(webApi, cmd.TriggerID)
+				}
+
 			case socketmode.EventTypeEventsAPI:
 				socketMode.Ack(*envelope.Request)
 				eventPayload, _ := envelope.Data.(slackevents.EventsAPIEvent)
