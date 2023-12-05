@@ -2,7 +2,7 @@
 
 <img src="./assets/logo-512px.png" alt="Replica Logo" width="100">
 
-# Replica
+# REPLICΛ
 
 [Overview](#overview) •
 [Key Features](#key-features) •
